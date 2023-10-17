@@ -1,42 +1,87 @@
 import cv2
 import pytesseract
 from matplotlib import pyplot as plt
-# import numpy as np
-from glob import glob
-from strsimpy.normalized_levenshtein import NormalizedLevenshtein
+import numpy as np
 
-normalized_levenshtein = NormalizedLevenshtein()
+from api import call_captcha
+from img import find5
+
 pytesseract.pytesseract.tesseract_cmd = r'E:\Program Files\Tesseract-OCR\tesseract.exe'
 
-for f in glob('images/*.jpg'):
-    actual_text = f.split('\\')[1].split('.jpg')[0]
-    img_cv = cv2.imread(f, cv2.IMREAD_GRAYSCALE)
+captcha_code, img_cv = call_captcha()
+# img_cv = img_cv[5:40, 20:130]
 
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
-    img_cv = cv2.morphologyEx(img_cv, cv2.MORPH_OPEN, kernel)
+img_cv = cv2.copyMakeBorder(img_cv, 25, 25, 25, 25,
+                            cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
-    # Page segmentation modes:
-    #     0    Orientation and script detection (OSD) only.
-    #     1    Automatic page segmentation with OSD.
-    #     2    Automatic page segmentation, but no OSD, or OCR. (not implemented)
-    #     3    Fully automatic page segmentation, but no OSD. (Default)
-    #     4    Assume a single column of text of variable sizes.
-    #     5    Assume a single uniform block of vertically aligned text.
-    #     6    Assume a single uniform block of text.
-    #     7    Treat the image as a single text line.
-    #     8    Treat the image as a single word.
-    #     9    Treat the image as a single word in a circle.
-    #     10    Treat the image as a single character.
-    #     11    Sparse text. Find as much text as possible in no particular order.
-    #     12    Sparse text with OSD.
-    #     13    Raw line. Treat the image as a single text line,
-    #         bypassing hacks that are Tesseract-specific.
 
+# kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+# img_cv = cv2.morphologyEx(img_cv, cv2.MORPH_OPEN, kernel)
+
+
+hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
+
+mask = cv2.inRange(hsv, (0, 0, 150), (255, 10, 255))
+
+# Build mask of non black pixels.
+nzmask = cv2.inRange(hsv, (0, 0, 10), (255, 255, 255))
+
+# Erode the mask - all pixels around a black pixels should not be masked.
+nzmask = cv2.erode(nzmask, np.ones((5, 5)))
+
+mask = mask & nzmask
+
+new_img = img_cv.copy()
+new_img[np.where(mask)] = 255
+img_cv = new_img
+
+for psm in [7, 8, 11]:
     ocr_text = pytesseract.image_to_string(
-        img_cv, lang="enm", config="--psm 12 --dpi 96 -c tessedit_char_whitelist=0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        img_cv, lang="eng", config=str.format("--psm {0} -c tessedit_char_whitelist=0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", psm))
     ocr_text = ocr_text.strip()
 
-    distance = round(normalized_levenshtein.similarity(
-        actual_text, ocr_text), 1)
+    print(psm, ':', ocr_text)
 
-    print(actual_text, ocr_text, distance)
+# if find5(img_cv) and ocr_text.find('S') != -1:
+#     print('possible 5/S')
+
+# # Set our filtering parameters
+# # Initialize parameter setting using cv2.SimpleBlobDetector
+# params = cv2.SimpleBlobDetector_Params()
+
+# # Set Area filtering parameters
+# params.filterByArea = True
+# params.minArea = 100
+
+# # Set Circularity filtering parameters
+# params.filterByCircularity = True
+# params.minCircularity = 0.9
+
+# # Set Convexity filtering parameters
+# params.filterByConvexity = True
+# params.minConvexity = 0.2
+
+# # Set inertia filtering parameters
+# params.filterByInertia = True
+# params.minInertiaRatio = 0.01
+
+# # Create a detector with the parameters
+# detector = cv2.SimpleBlobDetector_create(params)
+
+# # Detect blobs
+# keypoints = detector.detect(img_cv)
+
+# # Draw blobs on our image as red circles
+# blank = np.zeros((1, 1))
+# blobs = cv2.drawKeypoints(img_cv, keypoints, blank, (0, 0, 255),
+#                           cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+
+# plt.imshow(mask, 'gray')
+# plt.show()
+# plt.imshow(nzmask, 'gray')
+# plt.show()
+# plt.imshow(new_img, 'gray')
+# plt.show()
+plt.imshow(img_cv, 'gray')
+plt.show()
