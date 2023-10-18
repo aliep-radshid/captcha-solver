@@ -11,7 +11,7 @@ from tensorflow import keras
 from tensorflow.keras import layers
 import string
 
-from api import call_captcha
+from api import IGSException, IGSLoginInfo, call_captcha, call_get_events, call_get_record, call_login
 from glob import glob
 
 img_width = 165
@@ -186,6 +186,7 @@ def decode_batch_predictions(pred):
 # pred_texts = decode_batch_predictions(preds)
 # print(pred_texts)
 
+login_info: IGSLoginInfo = None
 tries = 0
 
 while tries < 5:
@@ -197,7 +198,7 @@ while tries < 5:
     img_cv = img_cv.reshape((img_height, img_width, 1))
     x_img = tf.image.convert_image_dtype(img_cv, tf.float32)
     x_img = tf.transpose(x_img, perm=[1, 0, 2])
-    tf.expand_dims(x_img)
+    x_img = tf.expand_dims(x_img, axis=0)
 
     preds = prediction_model.predict(x_img)
     pred_texts = decode_batch_predictions(preds)
@@ -205,4 +206,22 @@ while tries < 5:
     captcha_value = pred_texts[0] if pred_texts[0].find(
         '[UNK]') == -1 else None
     if captcha_value is None:
+        print("captcha contains unknown chars")
         continue
+    try:
+        login_info = call_login("10260544520", "rad007",
+                                captcha_code, captcha_value)
+        print(login_info.token)
+    except IGSException as e:
+        print("api error", e.code, str(e))
+        continue
+    except Exception as e:
+        print("api error", str(e))
+        continue
+
+    break
+
+if login_info is not None:
+    print(call_get_record(login_info.token,
+          login_info.company_code, "866897051642090"))
+    print(call_get_events(login_info.token, "866897051642090"))

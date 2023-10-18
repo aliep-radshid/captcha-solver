@@ -7,7 +7,7 @@ from img import readb64
 
 class IGSException(Exception):
     def __init__(self, body: dict):
-        self.code = body["ErrCode"]
+        self.code: int = body["ErrCode"]
         super().__init__(body["ErrDesc"])
 
 
@@ -22,11 +22,12 @@ class IGSLoginInfo():
     }
     """
 
-    def __init__(self, body: dict):
-        self.token = body["TokenCode"]
-        self.name = body["Name"]
-        self.company_id = body["CompanyID"]
-        self.access_reports = body["AccessReports"]
+    def __init__(self, body: dict, username: str):
+        self.token: str = body["TokenCode"]
+        self.name: str = body["Name"]
+        self.company_id: int = body["CompanyID"]
+        self.access_reports: str = body["AccessReports"]
+        self.company_code: str = username
 
 
 def _strip_dnull(text: str):
@@ -155,4 +156,4 @@ def call_login(username: str, password: str, captcha_id: str, captcha_value: str
         "https://report.sipaad.ir/IGS.ITM.WebSiteServiceMiddle/WebServices/Authentication.asmx/LoginToSystem", json=body)
     body = json.loads(_strip_dnull(r.text))
     _handle_err(body)
-    return IGSLoginInfo(body)
+    return IGSLoginInfo(body, username)
