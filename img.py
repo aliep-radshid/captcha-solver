@@ -7,9 +7,9 @@ templates_5 = map(lambda f5: cv2.imread(
     f5, cv2.IMREAD_GRAYSCALE), glob('./templates/5*.jpg'))
 
 
-def readb64(encoded_data):
+def readb64(encoded_data, mode=cv2.IMREAD_COLOR):
     nparr = np.fromstring(base64.b64decode(encoded_data), np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    img = cv2.imdecode(nparr, mode)
     return img
 
 
