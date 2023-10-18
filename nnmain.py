@@ -157,6 +157,7 @@ def decode_batch_predictions(pred):
 #     x_img = tf.image.convert_image_dtype(img_cv, tf.float32)
 #     x_img = tf.transpose(x_img, perm=[1, 0, 2])
 #     print(x_img.shape)
+#     images.append(x_img)
 
 # images = np.array(images)
 # preds = prediction_model.predict(images)
@@ -164,23 +165,44 @@ def decode_batch_predictions(pred):
 
 # print(pred_texts)
 
-files = glob('./*.jpg')
-_, ax = plt.subplots(2, 4, figsize=(15, 5))
-images = []
-raw_images = []
-for f in files:
-    print(f)
-    # 1. Read image
-    x_img = tf.io.read_file(f)
-    # 2. Decode and convert to grayscale
-    x_img = tf.io.decode_jpeg(x_img, channels=1)
-    raw_images.append(x_img)
-    # 3. Convert to float32 in [0, 1] range
-    x_img = tf.image.convert_image_dtype(x_img, tf.float32)
-    x_img = tf.transpose(x_img, perm=[1, 0, 2])
-    images.append(x_img)
+# files = glob('./*.jpg')
+# _, ax = plt.subplots(2, 4, figsize=(15, 5))
+# images = []
+# raw_images = []
+# for f in files:
+#     print(f)
+#     # 1. Read image
+#     x_img = tf.io.read_file(f)
+#     # 2. Decode and convert to grayscale
+#     x_img = tf.io.decode_jpeg(x_img, channels=1)
+#     raw_images.append(x_img)
+#     # 3. Convert to float32 in [0, 1] range
+#     x_img = tf.image.convert_image_dtype(x_img, tf.float32)
+#     x_img = tf.transpose(x_img, perm=[1, 0, 2])
+#     images.append(x_img)
 
-images = np.array(images)
-preds = prediction_model.predict(images)
-pred_texts = decode_batch_predictions(preds)
-print(pred_texts)
+# images = np.array(images)
+# preds = prediction_model.predict(images)
+# pred_texts = decode_batch_predictions(preds)
+# print(pred_texts)
+
+tries = 0
+
+while tries < 5:
+    tries += 1
+    print('try: ', tries)
+    captcha_code, img_cv = call_captcha(cv2.IMREAD_GRAYSCALE)
+    cv2.imwrite('test.jpg', img_cv)
+
+    img_cv = img_cv.reshape((img_height, img_width, 1))
+    x_img = tf.image.convert_image_dtype(img_cv, tf.float32)
+    x_img = tf.transpose(x_img, perm=[1, 0, 2])
+    tf.expand_dims(x_img)
+
+    preds = prediction_model.predict(x_img)
+    pred_texts = decode_batch_predictions(preds)
+
+    captcha_value = pred_texts[0] if pred_texts[0].find(
+        '[UNK]') == -1 else None
+    if captcha_value is None:
+        continue
